@@ -17,10 +17,9 @@
 </head>
 <body>
 <h1>Golang WebSocket Chat</h1>
-<div id="messages"></div>
 <input id="input" type="text" placeholder="Введите сообщение...">
 <button onclick="sendMessage()">Отправить</button>
-
+<div id="messages"></div>
 <script>
     const socket = new WebSocket("{{.WSUrl}}");
     socket.onopen = function () {
@@ -32,7 +31,7 @@
         let messages = document.getElementById("messages");
         let message = document.createElement("div");
         message.textContent = event.data;
-        messages.appendChild(message);
+        messages.append(message);
     };
 
     function sendMessage() {

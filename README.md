@@ -10,7 +10,6 @@ Can be found on: https://hub.docker.com/r/dark705/go-ws-chat
 
 ## API endpoints TODO!!!
 
-
 ### Kubernetes endpoint probes
 
 * /kuber/startup - Startup probe. See Environment.
@@ -34,6 +33,15 @@ Can be found on: https://hub.docker.com/r/dark705/go-ws-chat
 * HTTP_REQUEST_HEADER_MAX_SIZE - Maximum HTTP request header size in bites. Default: "10000"
 * HTTP_REQUEST_READ_HEADER_TIMEOUT_MILLISECONDS - Maximum time for read HTTP request header in milliseconds. Default: "
   2000"
+
+* WEB_SOCKET_UPGRADER_CHECK_ORIGIN - Check Origin header for WS connection. Default: true
+* WEB_SOCKET_UPGRADER_READ_BUFFER_SIZE - WS read buffer size. Default: "2048"
+* WEB_SOCKET_UPGRADER_WRITE_BUFFER_SIZE - WS write buffer size. Default: "2048"
+* WEB_SOCKET_HANDLER_WRITE_TIMEOUT_SECONDS - Max duration time for write WS message to client in seconds. Default: "20"
+* WEB_SOCKET_HANDLER_READ_TIMEOUT_SECONDS - Max duration time for read WS message from client in seconds. Default: "20"
+* WEB_SOCKET_HANDLER_READ_LIMIT_PER_MESSAGE - Max WS message read size. Default: 2048
+* WEB_SOCKET_HANDLER_PING_INTERVAL_SECONDS - WS Ping client duration interval in seconds. Default: 5
+
 * PROMETHEUS_PORT - Prometheus port. Default:"9000"
 
 * KUBER_PROBE_START_UP_SECONDS - Time seconds after start, when Startup probe will return Ok. Default:"0"

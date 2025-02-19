@@ -13,6 +13,14 @@ type EnvConfig struct {
 	HTTPRequestHeaderMaxSize                 int    `env:"HTTP_REQUEST_HEADER_MAX_SIZE" envDefault:"10000"`
 	HTTPRequestReadHeaderTimeoutMilliseconds int    `env:"HTTP_REQUEST_READ_HEADER_TIMEOUT_MILLISECONDS" envDefault:"2000"`
 
+	WebSocketUpgraderReadBufferSize     int  `env:"WEB_SOCKET_UPGRADER_READ_BUFFER_SIZE" envDefault:"2048"`
+	WebSocketUpgraderWriteBufferSize    int  `env:"WEB_SOCKET_UPGRADER_WRITE_BUFFER_SIZE" envDefault:"2048"`
+	WebSocketUpgraderCheckOrigin        bool `env:"WEB_SOCKET_UPGRADER_CHECK_ORIGIN" envDefault:"true"`
+	WebSocketHandlerWriteTimeoutSeconds int  `env:"WEB_SOCKET_HANDLER_WRITE_TIMEOUT_SECONDS" envDefault:"20"`
+	WebSocketHandlerReadTimeoutSeconds  int  `env:"WEB_SOCKET_HANDLER_READ_TIMEOUT_SECONDS" envDefault:"20"`
+	WebSocketHandlerReadLimitPerMessage int  `env:"WEB_SOCKET_HANDLER_READ_LIMIT_PER_MESSAGE" envDefault:"2048"`
+	WebSocketHandlerPingIntervalSeconds int  `env:"WEB_SOCKET_HANDLER_PING_INTERVAL_SECONDS" envDefault:"5"`
+
 	PrometheusPort string `env:"PROMETHEUS_PORT" envDefault:"9000"`
 
 	KuberProbeStartupSeconds   int `env:"KUBER_PROBE_START_UP_SECONDS" envDefault:"0"`

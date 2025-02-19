@@ -1,4 +1,4 @@
-package httpindexhandler
+package chat
 
 import (
 	"context"
@@ -6,20 +6,6 @@ import (
 	"log"
 	"net/http"
 )
-
-type Logger interface {
-	Debugf(format string, args ...any)
-	DebugfContext(ctx context.Context, format string, args ...any)
-
-	Infof(format string, args ...any)
-	InfofContext(ctx context.Context, format string, args ...any)
-
-	Warnf(format string, args ...any)
-	WarnfContext(ctx context.Context, format string, args ...any)
-
-	Errorf(format string, args ...any)
-	ErrorfContext(ctx context.Context, format string, args ...any)
-}
 
 const (
 	HTTPIndexRoutePattern = http.MethodGet + " /"
@@ -45,20 +31,20 @@ func (h *httpIndexHandler) ServeHTTP(responseWriter http.ResponseWriter, request
 
 	err := h.tpl.Execute(responseWriter, struct {
 		WSUrl string
-	}{WSUrl: "ws"})
+	}{WSUrl: HTTPWSEndpoint})
 	if err != nil {
-		h.logError(ctx, responseWriter, request, err, "httpIndexHandler, tpl.Execute")
+		h.logError(ctx, request, "chat, httpIndexHandler, tpl.Execute", err)
 
 		return
 	}
 }
 
-func (h *httpIndexHandler) handleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error, point string) { //nolint:unused
-	h.logError(ctx, w, r, err, point)
+func (h *httpIndexHandler) handleError(ctx context.Context, w http.ResponseWriter, r *http.Request, point string, err error) { //nolint:unused
+	h.logError(ctx, r, point, err)
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
-func (h *httpIndexHandler) logError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error, point string) {
+func (h *httpIndexHandler) logError(ctx context.Context, r *http.Request, point string, err error) {
 	h.logger.ErrorfContext(ctx, "%s, error: %s", point, err)
 }
 

@@ -1,13 +1,14 @@
 package main
 
 import (
+	"github.com/gorilla/websocket"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/dark705/go-ws-chat/internal/chat"
 	"github.com/dark705/go-ws-chat/internal/config"
-	"github.com/dark705/go-ws-chat/internal/httpindexhandler"
 	"github.com/dark705/go-ws-chat/internal/httpserver"
 	"github.com/dark705/go-ws-chat/internal/kuberprobe"
 	"github.com/dark705/go-ws-chat/internal/prometheus"
@@ -27,14 +28,30 @@ func main() {
 	prometheusServer.Run()
 	defer prometheusServer.Stop()
 
-	httpIndexHandler := httpindexhandler.NewHTTPIndexHandler(logger)
+	wsUpgrader := &websocket.Upgrader{
+		ReadBufferSize:  envConfig.WebSocketUpgraderReadBufferSize,
+		WriteBufferSize: envConfig.WebSocketUpgraderWriteBufferSize,
+	}
+	if !envConfig.WebSocketUpgraderCheckOrigin {
+		wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
+	}
+
+	chatWSHandler := chat.NewWSHandler(logger, wsUpgrader, chat.WSClientConfig{
+		WriteTimeoutSeconds: envConfig.WebSocketHandlerWriteTimeoutSeconds,
+		ReadTimeoutSeconds:  envConfig.WebSocketHandlerReadTimeoutSeconds,
+		ReadLimitPerMessage: envConfig.WebSocketHandlerReadLimitPerMessage,
+		PingIntervalSeconds: envConfig.WebSocketHandlerPingIntervalSeconds,
+	})
+
+	chatHTTPIndexHandler := chat.NewHTTPIndexHandler(logger)
 	httpKuberProbeHandler := kuberprobe.NewHTTPHandler(logger,
 		envConfig.KuberProbeStartupSeconds,
 		envConfig.KuberProbeProbabilityLive,
 		envConfig.KuberProbeProbabilityReady)
 
 	httpHandler := http.NewServeMux()
-	httpHandler.Handle(httpindexhandler.HTTPIndexRoutePattern, httpIndexHandler)
+	httpHandler.Handle(chat.HTTPWSRoutePattern, chatWSHandler)
+	httpHandler.Handle(chat.HTTPIndexRoutePattern, chatHTTPIndexHandler)
 	httpHandler.Handle(kuberprobe.HTTPRoutePattern, httpKuberProbeHandler)
 
 	prometheusMiddlewareHandler := promhttpmiddleware.New(promhttpmiddleware.Config{
