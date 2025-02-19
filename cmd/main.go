@@ -7,8 +7,8 @@ import (
 	"syscall"
 
 	"github.com/dark705/go-ws-chat/internal/config"
+	"github.com/dark705/go-ws-chat/internal/httpindexhandler"
 	"github.com/dark705/go-ws-chat/internal/httpserver"
-	"github.com/dark705/go-ws-chat/internal/httptesthandler"
 	"github.com/dark705/go-ws-chat/internal/kuberprobe"
 	"github.com/dark705/go-ws-chat/internal/prometheus"
 	"github.com/dark705/go-ws-chat/internal/slog"
@@ -27,16 +27,14 @@ func main() {
 	prometheusServer.Run()
 	defer prometheusServer.Stop()
 
-	httpTestHandler := httphandler.NewHTTPTestHandler(logger)
-	httpHostHandler := httphandler.NewHTTPHostHandler(logger)
+	httpIndexHandler := httpindexhandler.NewHTTPIndexHandler(logger)
 	httpKuberProbeHandler := kuberprobe.NewHTTPHandler(logger,
 		envConfig.KuberProbeStartupSeconds,
 		envConfig.KuberProbeProbabilityLive,
 		envConfig.KuberProbeProbabilityReady)
 
 	httpHandler := http.NewServeMux()
-	httpHandler.Handle(httphandler.HTTPTestRoutePattern, httpTestHandler)
-	httpHandler.Handle(httphandler.HTTPHostRoutePattern, httpHostHandler)
+	httpHandler.Handle(httpindexhandler.HTTPIndexRoutePattern, httpIndexHandler)
 	httpHandler.Handle(kuberprobe.HTTPRoutePattern, httpKuberProbeHandler)
 
 	prometheusMiddlewareHandler := promhttpmiddleware.New(promhttpmiddleware.Config{
