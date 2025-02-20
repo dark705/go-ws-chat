@@ -3,7 +3,9 @@ package chat
 import (
 	"context"
 	"github.com/gorilla/websocket"
+	"math/rand/v2"
 	"net/http"
+	"strconv"
 )
 
 const (
@@ -27,35 +29,28 @@ func NewWSHandler(logger Logger, webSocketUpgrader *websocket.Upgrader, wsClient
 
 func (h *wsHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-
+	uniqId := strconv.Itoa(rand.IntN(10000))
 	wsConnect, err := h.wsUpgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		h.logError(ctx, request, "chat, wsHandler, wsUpgrader.Upgrade", err) // h.wsUpgrader.Upgrade already send http error
 
 		return
 	}
-	h.logInfo(ctx, request, "chat, wsHandler", "new connect")
-
-	// TODO remove, only for echo test
-	readCh := make(chan []byte)
-	writeCh := make(chan []byte)
-	go func() {
-		defer close(writeCh)
-		for {
-			writeCh <- <-readCh
-		}
-	}()
+	h.logInfo(ctx, request, "chat, wsHandler", "new connect, uniqID: "+uniqId)
 
 	wsClient := &WSClient{
 		config:    h.wsClientConfig,
 		logger:    h.logger,
+		uniqId:    uniqId,
 		wsConnect: wsConnect,
-		readCh:    readCh,
-		writeCh:   writeCh,
+		readCh:    make(chan []byte),
+		writeCh:   make(chan []byte),
 	}
 
 	go wsClient.writePump(ctx)
 	go wsClient.readPump(ctx)
+	go wsClient.writeSettings(ctx)
+	go wsClient.echoTest(ctx) // TODO remove, only for echo test
 }
 
 func (h *wsHandler) logError(ctx context.Context, r *http.Request, point string, err error) { //nolint:unused

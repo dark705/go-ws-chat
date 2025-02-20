@@ -49,6 +49,7 @@
             width: 100%;
             overflow: hidden;
         }
+
         .message {
             margin: 0.2em;
             border-radius: 1em;
@@ -59,6 +60,7 @@
             background: white;
 
         }
+
         .echoMessage {
             background: #e8fad2;
         }
@@ -69,7 +71,8 @@
 <div id="messages"></div>
 <form id="form">
     <input type="submit" value="Send"/>
-    <input type="text" id="msg" size="64" autofocus/>
+    <input type="text" id="msg" size="64" autofocus/> To remote ID:
+    <input type="text" id="to" size="10"/>
 </form>
 
 
@@ -77,33 +80,50 @@
     const socket = new WebSocket("{{.WSUrl}}");
     socket.onopen = function () {
         const item = document.createElement("div");
-        item.innerHTML = "<b>Connection open.</b>";
+        item.innerHTML = "<i>Connection open...</i><p>Yours ID is: <b id='clientid'>???</b>, tell it remote person.</p>";
         appendMessage(item);
         console.log("WS connected success");
     };
 
     socket.onclose = function () {
         const item = document.createElement("div");
-        item.innerHTML = "<b>Connection closed.</b>";
+        item.innerHTML = "<i>Connection closed.</i>";
         appendMessage(item);
+        console.log("WS disconnected");
     };
 
     socket.onmessage = function (evt) {
-        const item = document.createElement("div");
-        item.setAttribute("class", "message incomeMessage");
-        item.innerText = evt.data;
-        appendMessage(item);
+        console.debug("WS message from server", evt.data);
+
+        const m = JSON.parse(evt.data)
+        switch (m.type) {
+            case {{.ClientDataTypeSettings}}:
+                const item1 = document.getElementById("clientid");
+                item1.innerText = m.uniqId;
+                break
+            case {{.ClientDataTypeMessage}}:
+                const item2 = document.createElement("div");
+                item2.setAttribute("class", "message incomeMessage");
+                item2.innerText = m.message;
+                appendMessage(item2);
+                break
+        }
     };
 
     document.getElementById("form").onsubmit = function () {
         const msg = document.getElementById("msg");
+        const to = document.getElementById("to");
+
         if (!socket) {
             return false;
         }
-        if (!msg.value) {
+        if (!msg.value || !to.value) {
             return false;
         }
-        socket.send(msg.value);
+
+        const m = JSON.stringify({message: msg.value, to: to.value})
+        console.debug("WS message to server", m);
+        socket.send(m);
 
         const item = document.createElement("div");
         item.setAttribute("class", "message echoMessage");
