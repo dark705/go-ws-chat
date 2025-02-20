@@ -14,30 +14,113 @@
     <meta name="theme-color" content="#ffffff">
 
     <title>Golang WebSocket Chat</title>
+    <style>
+        html {
+            overflow: hidden;
+        }
+
+        body {
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: gray;
+        }
+
+        #messages {
+            background: #d6f1ff;
+            margin: 0;
+            padding: 0.5em 0.5em 0.5em 0.5em;
+            position: absolute;
+            top: 0.5em;
+            left: 0.5em;
+            right: 0.5em;
+            bottom: 3em;
+            overflow: auto;
+        }
+
+        #form {
+            padding: 0 0.5em 0 0.5em;
+            margin: 0;
+            position: absolute;
+            bottom: 1em;
+            left: 0px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .message {
+            margin: 0.2em;
+            border-radius: 1em;
+            padding: 0.2em;
+        }
+
+        .incomeMessage {
+            background: white;
+
+        }
+        .echoMessage {
+            background: #e8fad2;
+        }
+
+    </style>
 </head>
 <body>
-<h1>Golang WebSocket Chat</h1>
-<input id="input" type="text" placeholder="Введите сообщение...">
-<button onclick="sendMessage()">Отправить</button>
 <div id="messages"></div>
+<form id="form">
+    <input type="submit" value="Send"/>
+    <input type="text" id="msg" size="64" autofocus/>
+</form>
+
+
 <script>
     const socket = new WebSocket("{{.WSUrl}}");
     socket.onopen = function () {
+        const item = document.createElement("div");
+        item.innerHTML = "<b>Connection open.</b>";
+        appendMessage(item);
         console.log("WS connected success");
     };
 
-
-    socket.onmessage = function (event) {
-        let messages = document.getElementById("messages");
-        let message = document.createElement("div");
-        message.textContent = event.data;
-        messages.append(message);
+    socket.onclose = function () {
+        const item = document.createElement("div");
+        item.innerHTML = "<b>Connection closed.</b>";
+        appendMessage(item);
     };
 
-    function sendMessage() {
-        let input = document.getElementById('input');
-        socket.send(input.value);
-        input.value = '';
+    socket.onmessage = function (evt) {
+        const item = document.createElement("div");
+        item.setAttribute("class", "message incomeMessage");
+        item.innerText = evt.data;
+        appendMessage(item);
+    };
+
+    document.getElementById("form").onsubmit = function () {
+        const msg = document.getElementById("msg");
+        if (!socket) {
+            return false;
+        }
+        if (!msg.value) {
+            return false;
+        }
+        socket.send(msg.value);
+
+        const item = document.createElement("div");
+        item.setAttribute("class", "message echoMessage");
+        item.innerText = msg.value;
+        appendMessage(item);
+
+        msg.value = "";
+        return false;
+    };
+
+    function appendMessage(item) {
+        const messages = document.getElementById("messages");
+        const doScroll = messages.scrollTop > messages.scrollHeight - messages.clientHeight - 1;
+        messages.appendChild(item);
+        if (doScroll) {
+            messages.scrollTop = messages.scrollHeight - messages.clientHeight;
+        }
     }
 </script>
 </body>

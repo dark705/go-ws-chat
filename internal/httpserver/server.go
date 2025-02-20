@@ -77,7 +77,7 @@ func (s *Server) Stop() {
 
 		return
 	}
-	s.logger.Infof(s.config.Name + "HTTPServer, success stop")
+	s.logger.Infof(s.config.Name + " HTTPServer, success stop")
 	cancel()
 }
 
