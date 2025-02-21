@@ -17,19 +17,21 @@ type wsHandler struct {
 	logger         Logger
 	wsUpgrader     *websocket.Upgrader
 	wsClientConfig WSClientConfig
+	ps             PubSub
 }
 
-func NewWSHandler(logger Logger, webSocketUpgrader *websocket.Upgrader, wsClientConfig WSClientConfig) *wsHandler { //nolint:revive
+func NewWSHandler(logger Logger, webSocketUpgrader *websocket.Upgrader, wsClientConfig WSClientConfig, ps PubSub) *wsHandler { //nolint:revive
 	return &wsHandler{
 		logger:         logger,
 		wsUpgrader:     webSocketUpgrader,
 		wsClientConfig: wsClientConfig,
+		ps:             ps,
 	}
 }
 
 func (h *wsHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	uniqId := strconv.Itoa(rand.IntN(10000))
+	uniqId := strconv.Itoa(rand.IntN(100000))
 	wsConnect, err := h.wsUpgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		h.logError(ctx, request, "chat, wsHandler, wsUpgrader.Upgrade", err) // h.wsUpgrader.Upgrade already send http error
@@ -47,11 +49,10 @@ func (h *wsHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.
 		writeCh:   make(chan []byte, 256),
 	}
 
-	ps := &echoPubSub{ch: make(chan string)}
-
+	ctx = context.Background()
 	go wsClient.writePump(ctx)
 	go wsClient.readPump(ctx)
-	go wsClient.processor(ctx, ps)
+	go wsClient.processor(ctx, h.ps)
 }
 
 func (h *wsHandler) logError(ctx context.Context, r *http.Request, point string, err error) { //nolint:unused

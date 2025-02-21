@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/dark705/go-ws-chat/internal/pubsub"
 	"github.com/gorilla/websocket"
 	"net/http"
 	"os"
@@ -36,12 +37,15 @@ func main() {
 		wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	}
 
+	//ps := pubsub.NewRndEcho(logger)
+	ps := pubsub.NewInmemory(logger)
+
 	chatWSHandler := chat.NewWSHandler(logger, wsUpgrader, chat.WSClientConfig{
 		WriteTimeoutSeconds: envConfig.WebSocketHandlerWriteTimeoutSeconds,
 		ReadTimeoutSeconds:  envConfig.WebSocketHandlerReadTimeoutSeconds,
 		ReadLimitPerMessage: envConfig.WebSocketHandlerReadLimitPerMessage,
 		PingIntervalSeconds: envConfig.WebSocketHandlerPingIntervalSeconds,
-	})
+	}, ps)
 
 	chatHTTPIndexHandler := chat.NewHTTPIndexHandler(logger)
 	httpKuberProbeHandler := kuberprobe.NewHTTPHandler(logger,

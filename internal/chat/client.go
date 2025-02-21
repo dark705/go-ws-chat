@@ -52,7 +52,9 @@ type WSClient struct {
 }
 
 func (c *WSClient) readPump(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
 	defer func() {
+		cancel()
 		c.wsConnect.Close()
 		close(c.readCh)
 	}()
@@ -87,8 +89,10 @@ func (c *WSClient) readPump(ctx context.Context) {
 }
 
 func (c *WSClient) writePump(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
 	ticker := time.NewTicker(time.Duration(c.config.PingIntervalSeconds) * time.Second)
 	defer func() {
+		cancel()
 		ticker.Stop()
 		c.wsConnect.Close()
 	}()
@@ -124,8 +128,10 @@ func (c *WSClient) writePump(ctx context.Context) {
 }
 
 func (c *WSClient) processor(ctx context.Context, ps PubSub) {
+	ctx, cancel := context.WithCancel(ctx)
 	//read
 	go func() {
+		defer cancel()
 		for m := range c.readCh {
 			var from ClientDataMessageFrom
 			err := json.Unmarshal(m, &from)
@@ -143,6 +149,7 @@ func (c *WSClient) processor(ctx context.Context, ps PubSub) {
 	//write
 	go func() {
 		defer func() {
+			cancel()
 			c.wsConnect.Close()
 			close(c.writeCh)
 		}()
@@ -157,7 +164,6 @@ func (c *WSClient) processor(ctx context.Context, ps PubSub) {
 			return
 		}
 		c.writeCh <- m
-
 		subCh, err := ps.Sub(ctx, c.uniqId)
 		if err != nil {
 			c.logError(ctx, "chat, WSClient, processor, ps.Sub", err)
@@ -183,19 +189,6 @@ func (c *WSClient) processor(ctx context.Context, ps PubSub) {
 			}
 		}
 	}()
-}
-
-type echoPubSub struct {
-	ch chan string
-}
-
-func (ps *echoPubSub) Sub(ctx context.Context, id string) (chan string, error) {
-	return ps.ch, nil
-}
-
-func (ps *echoPubSub) Pub(ctx context.Context, id, message string) error {
-	ps.ch <- message
-	return nil
 }
 
 func (c *WSClient) logError(ctx context.Context, point string, err error) {
