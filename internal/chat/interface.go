@@ -15,3 +15,8 @@ type Logger interface {
 	Errorf(format string, args ...any)
 	ErrorfContext(ctx context.Context, format string, args ...any)
 }
+
+type PubSub interface {
+	Sub(ctx context.Context, id string) (chan string, error)
+	Pub(ctx context.Context, id, message string) error
+}

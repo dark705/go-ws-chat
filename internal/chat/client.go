@@ -123,47 +123,79 @@ func (c *WSClient) writePump(ctx context.Context) {
 	}
 }
 
-func (c *WSClient) writeSettings(ctx context.Context) {
-	var settingsWSData ClientDataSettings
-	settingsWSData.Typ = ClientDataTypeSettings
-	settingsWSData.ID = c.uniqId
-	m, err := json.Marshal(settingsWSData)
-	if err != nil {
-		c.logError(ctx, "chat, WSClient, writeSettings, json.Marshal", err)
+func (c *WSClient) processor(ctx context.Context, ps PubSub) {
+	//read
+	go func() {
+		for m := range c.readCh {
+			var from ClientDataMessageFrom
+			err := json.Unmarshal(m, &from)
+			if err != nil {
+				c.logError(ctx, "chat, WSClient, processor, json.Unmarshal", err)
+			}
 
-		c.wsConnect.Close()
-	}
-	fmt.Println(string(m))
-	c.writeCh <- m
-}
-
-func (c *WSClient) echoTest(ctx context.Context) {
-	defer func() {
-		close(c.writeCh)
-		c.wsConnect.Close()
-	}()
-	for {
-		m := <-c.readCh
-		var from ClientDataMessageFrom
-		err := json.Unmarshal(m, &from)
-		if err != nil {
-			c.logError(ctx, "chat, WSClient, echoTest, json.Unmarshal", err)
-
-			return
+			err = ps.Pub(ctx, from.To, from.Message)
+			if err != nil {
+				c.logError(ctx, "chat, WSClient, processor, ps.Pub", err)
+			}
 		}
+	}()
 
-		var to ClientDataMessageTo
-		to.Typ = ClientDataTypeMessage
-		to.Message = from.Message
+	//write
+	go func() {
+		defer func() {
+			c.wsConnect.Close()
+			close(c.writeCh)
+		}()
 
-		m, err = json.Marshal(to)
+		var settingsWSData ClientDataSettings
+		settingsWSData.Typ = ClientDataTypeSettings
+		settingsWSData.ID = c.uniqId
+		m, err := json.Marshal(settingsWSData)
 		if err != nil {
-			c.logError(ctx, "chat, WSClient, echoTest, json.Marshal", err)
+			c.logError(ctx, "chat, WSClient, processor, json.Marshal(settingsWSData)", err)
 
 			return
 		}
 		c.writeCh <- m
-	}
+
+		subCh, err := ps.Sub(ctx, c.uniqId)
+		if err != nil {
+			c.logError(ctx, "chat, WSClient, processor, ps.Sub", err)
+
+			return
+		}
+
+		for subMessage := range subCh {
+			var messageTo ClientDataMessageTo
+			messageTo.Typ = ClientDataTypeMessage
+			messageTo.Message = subMessage
+
+			wm, err := json.Marshal(messageTo)
+			if err != nil {
+				c.logError(ctx, "chat, processor, writeSettings, json.Marshal(messageTo)", err)
+
+				return
+			}
+			select {
+			case c.writeCh <- wm:
+			default:
+				return
+			}
+		}
+	}()
+}
+
+type echoPubSub struct {
+	ch chan string
+}
+
+func (ps *echoPubSub) Sub(ctx context.Context, id string) (chan string, error) {
+	return ps.ch, nil
+}
+
+func (ps *echoPubSub) Pub(ctx context.Context, id, message string) error {
+	ps.ch <- message
+	return nil
 }
 
 func (c *WSClient) logError(ctx context.Context, point string, err error) {

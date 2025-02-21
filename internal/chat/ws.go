@@ -44,13 +44,14 @@ func (h *wsHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.
 		uniqId:    uniqId,
 		wsConnect: wsConnect,
 		readCh:    make(chan []byte),
-		writeCh:   make(chan []byte),
+		writeCh:   make(chan []byte, 256),
 	}
+
+	ps := &echoPubSub{ch: make(chan string)}
 
 	go wsClient.writePump(ctx)
 	go wsClient.readPump(ctx)
-	go wsClient.writeSettings(ctx)
-	go wsClient.echoTest(ctx) // TODO remove, only for echo test
+	go wsClient.processor(ctx, ps)
 }
 
 func (h *wsHandler) logError(ctx context.Context, r *http.Request, point string, err error) { //nolint:unused
