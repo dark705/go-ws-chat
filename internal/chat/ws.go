@@ -50,7 +50,7 @@ func (h *wsHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.
 		uniqID:    uniqID,
 		wsConnect: wsConnect,
 		readCh:    make(chan []byte),
-		writeCh:   make(chan []byte, 2566),
+		writeCh:   make(chan []byte, writeChanelBufferSizeBytes),
 	}
 
 	ctx = context.WithoutCancel(ctx)
