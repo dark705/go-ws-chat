@@ -49,7 +49,7 @@ func (h *httpIndexHandler) handleError(ctx context.Context, w http.ResponseWrite
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
-func (h *httpIndexHandler) logError(ctx context.Context, r *http.Request, point string, err error) {
+func (h *httpIndexHandler) logError(ctx context.Context, _ *http.Request, point string, err error) {
 	h.logger.ErrorfContext(ctx, "%s, error: %s", point, err)
 }
 

@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 var errWrongWSRemoteClientMessageType = errors.New("wrong WebSocket remote client msg type")
@@ -22,7 +23,7 @@ type ClientData struct {
 
 type ClientDataSettings struct {
 	ClientData
-	ID string `json:"uniqId"`
+	ID string `json:"uniqID"`
 }
 
 type ClientDataMessageTo struct {
@@ -45,7 +46,7 @@ type WSClientConfig struct {
 type WSClient struct {
 	config    WSClientConfig
 	logger    Logger
-	uniqId    string
+	uniqID    string
 	wsConnect *websocket.Conn
 	readCh    chan []byte
 	writeCh   chan []byte
@@ -65,11 +66,12 @@ func (c *WSClient) readPump(ctx context.Context) {
 		c.logDebug(ctx, "chat, WSClient, readPump", "got pong")
 		c.wsConnect.SetReadDeadline( //nolint:errcheck
 			time.Now().Add(time.Duration(c.config.ReadTimeoutSeconds) * time.Second))
+
 		return nil
 	})
 
 	for {
-		mt, message, err := c.wsConnect.ReadMessage()
+		messageType, message, err := c.wsConnect.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				c.logError(ctx, "chat, WSClient, readPump, wsConnect.ReadMessage", err)
@@ -77,8 +79,8 @@ func (c *WSClient) readPump(ctx context.Context) {
 
 			break
 		}
-		c.logDebug(ctx, "chat, WSClient, readPump", fmt.Sprintf("got message, type: %d, data: %s", mt, message))
-		if mt != websocket.TextMessage {
+		c.logDebug(ctx, "chat, WSClient, readPump", fmt.Sprintf("got message type: %d, data: %s", messageType, message))
+		if messageType != websocket.TextMessage {
 			c.logError(ctx, "chat, WSClient, readPump, wsConnect.ReadMessage", errWrongWSRemoteClientMessageType)
 
 			break
@@ -127,26 +129,26 @@ func (c *WSClient) writePump(ctx context.Context) {
 	}
 }
 
-func (c *WSClient) processor(ctx context.Context, ps PubSub) {
+func (c *WSClient) processor(ctx context.Context, pubSub PubSub) {
 	ctx, cancel := context.WithCancel(ctx)
-	//read
+	// read
 	go func() {
 		defer cancel()
-		for m := range c.readCh {
+		for message := range c.readCh {
 			var from ClientDataMessageFrom
-			err := json.Unmarshal(m, &from)
+			err := json.Unmarshal(message, &from)
 			if err != nil {
 				c.logError(ctx, "chat, WSClient, processor, json.Unmarshal", err)
 			}
 
-			err = ps.Pub(ctx, from.To, from.Message)
+			err = pubSub.Pub(ctx, from.To, from.Message)
 			if err != nil {
-				c.logError(ctx, "chat, WSClient, processor, ps.Pub", err)
+				c.logError(ctx, "chat, WSClient, processor, pubSub.Pub", err)
 			}
 		}
 	}()
 
-	//write
+	// write
 	go func() {
 		defer func() {
 			cancel()
@@ -156,17 +158,17 @@ func (c *WSClient) processor(ctx context.Context, ps PubSub) {
 
 		var settingsWSData ClientDataSettings
 		settingsWSData.Typ = ClientDataTypeSettings
-		settingsWSData.ID = c.uniqId
-		m, err := json.Marshal(settingsWSData)
+		settingsWSData.ID = c.uniqID
+		message, err := json.Marshal(settingsWSData)
 		if err != nil {
 			c.logError(ctx, "chat, WSClient, processor, json.Marshal(settingsWSData)", err)
 
 			return
 		}
-		c.writeCh <- m
-		subCh, err := ps.Sub(ctx, c.uniqId)
+		c.writeCh <- message
+		subCh, err := pubSub.Sub(ctx, c.uniqID)
 		if err != nil {
-			c.logError(ctx, "chat, WSClient, processor, ps.Sub", err)
+			c.logError(ctx, "chat, WSClient, processor, pubSub.Sub", err)
 
 			return
 		}
@@ -176,15 +178,16 @@ func (c *WSClient) processor(ctx context.Context, ps PubSub) {
 			messageTo.Typ = ClientDataTypeMessage
 			messageTo.Message = subMessage
 
-			wm, err := json.Marshal(messageTo)
+			message, err := json.Marshal(messageTo)
 			if err != nil {
 				c.logError(ctx, "chat, processor, writeSettings, json.Marshal(messageTo)", err)
 
 				return
 			}
 			select {
-			case c.writeCh <- wm:
+			case c.writeCh <- message:
 			default:
+
 				return
 			}
 		}

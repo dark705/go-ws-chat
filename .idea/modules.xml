@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/ws_chat.iml" filepath="$PROJECT_DIR$/.idea/ws_chat.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/go-ws-chat.iml" filepath="$PROJECT_DIR$/.idea/go-ws-chat.iml" />
     </modules>
   </component>
 </project>

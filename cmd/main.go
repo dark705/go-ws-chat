@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/dark705/go-ws-chat/internal/pubsub"
-	"github.com/gorilla/websocket"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,7 +11,9 @@ import (
 	"github.com/dark705/go-ws-chat/internal/httpserver"
 	"github.com/dark705/go-ws-chat/internal/kuberprobe"
 	"github.com/dark705/go-ws-chat/internal/prometheus"
+	"github.com/dark705/go-ws-chat/internal/pubsub"
 	"github.com/dark705/go-ws-chat/internal/slog"
+	"github.com/gorilla/websocket"
 	promhttpmetrics "github.com/slok/go-http-metrics/metrics/prometheus"
 	promhttpmiddleware "github.com/slok/go-http-metrics/middleware"
 	promhttpmiddlewarestd "github.com/slok/go-http-metrics/middleware/std"
@@ -34,18 +34,18 @@ func main() {
 		WriteBufferSize: envConfig.WebSocketUpgraderWriteBufferSize,
 	}
 	if !envConfig.WebSocketUpgraderCheckOrigin {
-		wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
+		wsUpgrader.CheckOrigin = func(_ *http.Request) bool { return true }
 	}
 
-	//ps := pubsub.NewRndEcho(logger)
-	ps := pubsub.NewInmemory(logger)
+	// ps := pubsub.NewRndEcho(logger)
+	pubSubInMemory := pubsub.NewInmemory(logger)
 
 	chatWSHandler := chat.NewWSHandler(logger, wsUpgrader, chat.WSClientConfig{
 		WriteTimeoutSeconds: envConfig.WebSocketHandlerWriteTimeoutSeconds,
 		ReadTimeoutSeconds:  envConfig.WebSocketHandlerReadTimeoutSeconds,
 		ReadLimitPerMessage: envConfig.WebSocketHandlerReadLimitPerMessage,
 		PingIntervalSeconds: envConfig.WebSocketHandlerPingIntervalSeconds,
-	}, ps)
+	}, pubSubInMemory)
 
 	chatHTTPIndexHandler := chat.NewHTTPIndexHandler(logger)
 	httpKuberProbeHandler := kuberprobe.NewHTTPHandler(logger,

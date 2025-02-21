@@ -31,7 +31,7 @@ type logger struct {
 	slogLogger *slog.Logger
 }
 
-func New(c Config) *logger { //nolint:revive
+func New(c Config) *logger {
 	var level slog.Level
 
 	err := level.UnmarshalText([]byte(c.Level))

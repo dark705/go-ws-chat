@@ -8,7 +8,7 @@ import (
 	"github.com/slok/go-http-metrics/metrics"
 )
 
-func NewFilterRecorder(recorder metrics.Recorder, handlerIDPrefixFilter []string) *filterRecorder { //nolint:revive
+func NewFilterRecorder(recorder metrics.Recorder, handlerIDPrefixFilter []string) *filterRecorder {
 	return &filterRecorder{recorder: recorder, handlerIDPrefixFilter: handlerIDPrefixFilter}
 }
 

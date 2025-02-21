@@ -1,0 +1,20 @@
+run:
+  tests: true
+
+linters:
+  disable-all: false
+  enable-all: true
+  disable:
+    - tagalign
+    - depguard
+    - gochecknoglobals
+    - godox
+    - lll
+    - nakedret
+    - wsl
+    - tagliatelle
+    - gofumpt
+    - goimports
+    - exhaustruct
+    - revive
+    - tenv

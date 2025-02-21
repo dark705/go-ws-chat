@@ -46,7 +46,7 @@ type httpHandler struct {
 func NewHTTPHandler(logger Logger,
 	timeOutStartUpSeconds int,
 	probabilityLive int,
-	probabilityReady int) *httpHandler { //nolint:revive
+	probabilityReady int) *httpHandler {
 	return &httpHandler{
 		logger:           logger,
 		timeStartUp:      time.Now().Add(time.Second * time.Duration(timeOutStartUpSeconds)),

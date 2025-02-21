@@ -2,9 +2,12 @@ package pubsub
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 )
+
+var errNotFound = errors.New("not found")
 
 type inmemory struct {
 	logger Logger
@@ -16,10 +19,10 @@ func NewInmemory(logger Logger) *inmemory {
 	return &inmemory{logger: logger, chs: make(map[string]chan string)}
 }
 
-func (ps *inmemory) Sub(ctx context.Context, id string) (chan string, error) {
+func (ps *inmemory) Sub(ctx context.Context, id string) (chan string, error) { //nolint:varnamelen
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	ch := make(chan string)
+	ch := make(chan string) //nolint:varnamelen
 	ps.chs[id] = ch
 	ps.logger.InfofContext(ctx,
 		"pubsub, inmemory, Sub, subscriber with id: %s subscribed, total subscribers is: %d",
@@ -38,13 +41,13 @@ func (ps *inmemory) Sub(ctx context.Context, id string) (chan string, error) {
 	return ch, nil
 }
 
-func (ps *inmemory) Pub(ctx context.Context, id, message string) error {
+func (ps *inmemory) Pub(ctx context.Context, id, message string) error { //nolint:varnamelen
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
 	ch, found := ps.chs[id]
 	if !found {
-		return fmt.Errorf("subscriber with id: %s not found", id)
+		return fmt.Errorf("subscriber with id: %s not found, %w", id, errNotFound)
 	}
 	ps.logger.DebugfContext(ctx, "pubsub, inmemory, Pub, subscriber with id: %s send: %s", id, message)
 	ch <- message
