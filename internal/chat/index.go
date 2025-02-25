@@ -29,13 +29,13 @@ func NewHTTPIndexHandler(logger Logger) *httpIndexHandler { //nolint:revive
 func (h *httpIndexHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	err := h.tpl.Execute(responseWriter, struct {
-		WSUrl                  string
-		ClientDataTypeSettings int
-		ClientDataTypeMessage  int
+		WSUrl               string
+		MessageTypeSettings MessageType
+		MessageTypeText     MessageType
 	}{
-		WSUrl:                  HTTPWSEndpoint,
-		ClientDataTypeSettings: ClientDataTypeSettings,
-		ClientDataTypeMessage:  ClientDataTypeMessage,
+		WSUrl:               HTTPWSEndpoint,
+		MessageTypeSettings: MessageTypeSettings,
+		MessageTypeText:     MessageTypeText,
 	})
 	if err != nil {
 		h.logError(ctx, request, "chat, httpIndexHandler, tpl.Execute", err)

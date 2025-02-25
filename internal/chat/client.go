@@ -12,28 +12,30 @@ import (
 
 var errWrongWSRemoteClientMessageType = errors.New("wrong WebSocket remote client msg type")
 
+type MessageType int
+
 const (
-	ClientDataTypeSettings = iota
-	ClientDataTypeMessage
+	MessageTypeSettings MessageType = iota
+	MessageTypeText
 )
 
-type ClientData struct {
-	Typ int `json:"type"`
+type Message struct {
+	Typ MessageType `json:"type"`
 }
 
-type ClientDataSettings struct {
-	ClientData
+type SettingsMessage struct {
+	Message
 	ID string `json:"uniqID"`
 }
 
-type ClientDataMessageTo struct {
-	ClientData
-	Message string `json:"message"`
+type TextMessageWrite struct {
+	Message
+	Text string `json:"text"`
 }
 
-type ClientDataMessageFrom struct {
-	Message string `json:"message"`
-	To      string `json:"to"`
+type TextMessageRead struct {
+	Text string `json:"text"`
+	To   string `json:"to"`
 }
 
 type WSClientConfig struct {
@@ -135,13 +137,13 @@ func (c *WSClient) processor(ctx context.Context, pubSub PubSub) {
 	go func() {
 		defer cancel()
 		for message := range c.readCh {
-			var from ClientDataMessageFrom
-			err := json.Unmarshal(message, &from)
+			var textMessageRead TextMessageRead
+			err := json.Unmarshal(message, &textMessageRead)
 			if err != nil {
 				c.logError(ctx, "chat, WSClient, processor, json.Unmarshal", err)
 			}
 
-			err = pubSub.Pub(ctx, from.To, from.Message)
+			err = pubSub.Pub(ctx, textMessageRead.To, textMessageRead.Text)
 			if err != nil {
 				c.logError(ctx, "chat, WSClient, processor, pubSub.Pub", err)
 			}
@@ -156,12 +158,12 @@ func (c *WSClient) processor(ctx context.Context, pubSub PubSub) {
 			close(c.writeCh)
 		}()
 
-		var settingsWSData ClientDataSettings
-		settingsWSData.Typ = ClientDataTypeSettings
-		settingsWSData.ID = c.uniqID
-		message, err := json.Marshal(settingsWSData)
+		var settingsMessage SettingsMessage
+		settingsMessage.Typ = MessageTypeSettings
+		settingsMessage.ID = c.uniqID
+		message, err := json.Marshal(settingsMessage)
 		if err != nil {
-			c.logError(ctx, "chat, WSClient, processor, json.Marshal(settingsWSData)", err)
+			c.logError(ctx, "chat, WSClient, processor, json.Marshal(settingsMessage)", err)
 
 			return
 		}
@@ -174,13 +176,13 @@ func (c *WSClient) processor(ctx context.Context, pubSub PubSub) {
 		}
 
 		for subMessage := range subCh {
-			var messageTo ClientDataMessageTo
-			messageTo.Typ = ClientDataTypeMessage
-			messageTo.Message = subMessage
+			var textMessageWrite TextMessageWrite
+			textMessageWrite.Typ = MessageTypeText
+			textMessageWrite.Text = subMessage
 
-			message, err := json.Marshal(messageTo)
+			message, err = json.Marshal(textMessageWrite)
 			if err != nil {
-				c.logError(ctx, "chat, processor, writeSettings, json.Marshal(messageTo)", err)
+				c.logError(ctx, "chat, processor, json.Marshal(textMessageWrite)", err)
 
 				return
 			}

@@ -98,14 +98,14 @@
 
         const m = JSON.parse(evt.data)
         switch (m.type) {
-            case {{.ClientDataTypeSettings}}:
+            case {{.MessageTypeSettings}}:
                 const item1 = document.getElementById("clientid");
                 item1.innerText = m.uniqID;
                 break
-            case {{.ClientDataTypeMessage}}:
+            case {{.MessageTypeText}}:
                 const item2 = document.createElement("div");
                 item2.setAttribute("class", "message incomeMessage");
-                item2.innerText = m.message;
+                item2.innerText = m.text;
                 appendMessage(item2);
                 break
         }
@@ -122,7 +122,7 @@
             return false;
         }
 
-        const m = JSON.stringify({message: msg.value, to: to.value})
+        const m = JSON.stringify({text: msg.value, to: to.value})
         console.debug("WS message to server", m);
         socket.send(m);
 
