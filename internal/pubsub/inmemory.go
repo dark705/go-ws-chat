@@ -32,6 +32,7 @@ func (ps *inmemory) Sub(ctx context.Context, id string) (chan string, error) { /
 		<-ctx.Done()
 		ps.mu.Lock()
 		defer ps.mu.Unlock()
+		close(ch)
 		delete(ps.chs, id)
 		ps.logger.InfofContext(ctx,
 			"pubsub, inmemory, Sub, subscriber with id: %s unsubscribed, total subscribers is: %d",
