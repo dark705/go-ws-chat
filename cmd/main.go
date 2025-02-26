@@ -38,14 +38,14 @@ func main() {
 	}
 
 	// ps := pubsub.NewRndEcho(logger)
-	pubSubInMemory := pubsub.NewInmemory(logger)
+	pubSubHubInMemory := pubsub.NewInmemory(logger)
 
 	chatWSHandler := chat.NewWSHandler(logger, wsUpgrader, chat.WSClientConfig{
 		WriteTimeoutSeconds: envConfig.WebSocketHandlerWriteTimeoutSeconds,
 		ReadTimeoutSeconds:  envConfig.WebSocketHandlerReadTimeoutSeconds,
 		ReadLimitPerMessage: envConfig.WebSocketHandlerReadLimitPerMessage,
 		PingIntervalSeconds: envConfig.WebSocketHandlerPingIntervalSeconds,
-	}, pubSubInMemory)
+	}, pubSubHubInMemory)
 
 	chatHTTPIndexHandler := chat.NewHTTPIndexHandler(logger)
 	httpKuberProbeHandler := kuberprobe.NewHTTPHandler(logger,

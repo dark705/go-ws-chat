@@ -2,7 +2,6 @@ package chat
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -11,32 +10,6 @@ import (
 )
 
 var errWrongWSRemoteClientMessageType = errors.New("wrong WebSocket remote client msg type")
-
-type MessageType int
-
-const (
-	MessageTypeSettings MessageType = iota
-	MessageTypeText
-)
-
-type Message struct {
-	Typ MessageType `json:"type"`
-}
-
-type SettingsMessage struct {
-	Message
-	ID string `json:"uniqID"`
-}
-
-type TextMessageWrite struct {
-	Message
-	Text string `json:"text"`
-}
-
-type TextMessageRead struct {
-	Text string `json:"text"`
-	To   string `json:"to"`
-}
 
 type WSClientConfig struct {
 	WriteTimeoutSeconds int
@@ -129,71 +102,6 @@ func (c *WSClient) writePump(ctx context.Context) {
 			c.logDebug(ctx, "chat, WSClient, writePump", "send ping")
 		}
 	}
-}
-
-func (c *WSClient) processor(ctx context.Context, pubSub PubSub) {
-	ctx, cancel := context.WithCancel(ctx)
-	// read
-	go func() {
-		defer cancel()
-		for message := range c.readCh {
-			var textMessageRead TextMessageRead
-			err := json.Unmarshal(message, &textMessageRead)
-			if err != nil {
-				c.logError(ctx, "chat, WSClient, processor, json.Unmarshal", err)
-			}
-
-			err = pubSub.Pub(ctx, textMessageRead.To, textMessageRead.Text)
-			if err != nil {
-				c.logError(ctx, "chat, WSClient, processor, pubSub.Pub", err)
-			}
-		}
-	}()
-
-	// write
-	go func() {
-		defer func() {
-			cancel()
-			c.wsConnect.Close()
-			close(c.writeCh)
-		}()
-
-		var settingsMessage SettingsMessage
-		settingsMessage.Typ = MessageTypeSettings
-		settingsMessage.ID = c.uniqID
-		message, err := json.Marshal(settingsMessage)
-		if err != nil {
-			c.logError(ctx, "chat, WSClient, processor, json.Marshal(settingsMessage)", err)
-
-			return
-		}
-		c.writeCh <- message
-		subCh, err := pubSub.Sub(ctx, c.uniqID)
-		if err != nil {
-			c.logError(ctx, "chat, WSClient, processor, pubSub.Sub", err)
-
-			return
-		}
-
-		for subMessage := range subCh {
-			var textMessageWrite TextMessageWrite
-			textMessageWrite.Typ = MessageTypeText
-			textMessageWrite.Text = subMessage
-
-			message, err = json.Marshal(textMessageWrite)
-			if err != nil {
-				c.logError(ctx, "chat, processor, json.Marshal(textMessageWrite)", err)
-
-				return
-			}
-			select {
-			case c.writeCh <- message:
-			default:
-
-				return
-			}
-		}
-	}()
 }
 
 func (c *WSClient) logError(ctx context.Context, point string, err error) {

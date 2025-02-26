@@ -21,15 +21,18 @@ type wsHandler struct {
 	logger         Logger
 	wsUpgrader     *websocket.Upgrader
 	wsClientConfig WSClientConfig
-	ps             PubSub
+	pubSubHub      PubSubHub
 }
 
-func NewWSHandler(logger Logger, webSocketUpgrader *websocket.Upgrader, wsClientConfig WSClientConfig, ps PubSub) *wsHandler { //nolint:revive
+func NewWSHandler(logger Logger,
+	webSocketUpgrader *websocket.Upgrader,
+	wsClientConfig WSClientConfig,
+	pubSubHub PubSubHub) *wsHandler { //nolint:revive
 	return &wsHandler{
 		logger:         logger,
 		wsUpgrader:     webSocketUpgrader,
 		wsClientConfig: wsClientConfig,
-		ps:             ps,
+		pubSubHub:      pubSubHub,
 	}
 }
 
@@ -44,19 +47,31 @@ func (h *wsHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.
 	}
 	h.logInfo(ctx, request, "chat, wsHandler", "new connect, uniqID: "+uniqID)
 
+	readCh := make(chan []byte)
+	writeCh := make(chan []byte, writeChanelBufferSizeBytes)
+
 	wsClient := &WSClient{
 		config:    h.wsClientConfig,
 		logger:    h.logger,
 		uniqID:    uniqID,
 		wsConnect: wsConnect,
-		readCh:    make(chan []byte),
-		writeCh:   make(chan []byte, writeChanelBufferSizeBytes),
+		readCh:    readCh,
+		writeCh:   writeCh,
+	}
+
+	messageHandler := &MessageHandler{
+		readCh:    readCh,
+		writeCh:   writeCh,
+		uniqID:    uniqID,
+		PubSubHub: h.pubSubHub,
+		logger:    h.logger,
 	}
 
 	ctx = context.WithoutCancel(ctx)
 	go wsClient.writePump(ctx)
 	go wsClient.readPump(ctx)
-	go wsClient.processor(ctx, h.ps)
+
+	messageHandler.Process(ctx)
 }
 
 func (h *wsHandler) logError(ctx context.Context, _ *http.Request, point string, err error) {
