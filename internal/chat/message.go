@@ -3,22 +3,25 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 )
 
-type MessageType int
+var errFailWriteToClientChan = errors.New("fail write to client channel")
+
+type messageType int
 
 const (
-	MessageTypeSettings MessageType = iota
-	MessageTypeText
+	messageTypeSettings messageType = iota
+	messageTypeText
 )
 
 type Message struct {
-	Typ MessageType `json:"type"`
+	Typ messageType `json:"type"`
 }
 
 type SettingsMessage struct {
 	Message
-	ID string `json:"uniqID"`
+	ID string `json:"clientID"`
 }
 
 type TextMessageWrite struct {
@@ -36,78 +39,85 @@ type PubSubHub interface {
 	Pub(ctx context.Context, id, message string) error
 }
 
-type MessageHandler struct {
+type oneToOneHandler struct {
+	logger    Logger
+	pubSubHub PubSubHub
+	clientID  string
 	readCh    chan []byte
 	writeCh   chan []byte
-	uniqID    string
-	PubSubHub PubSubHub
-	logger    Logger
 }
 
-func (h *MessageHandler) Process(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
-	// read
-	go func() {
-		defer cancel()
-		for message := range h.readCh {
-			var textMessageRead TextMessageRead
-			err := json.Unmarshal(message, &textMessageRead)
-			if err != nil {
-				h.logError(ctx, "chat, WSClient, processor, json.Unmarshal", err)
-			}
-
-			err = h.PubSubHub.Pub(ctx, textMessageRead.To, textMessageRead.Text)
-			if err != nil {
-				h.logError(ctx, "chat, WSClient, processor, pubSub.Pub", err)
-			}
-		}
+func (h *oneToOneHandler) read(ctx context.Context, cancel context.CancelFunc) {
+	defer func() {
+		cancel()
+		h.logDebug(ctx, "chat, oneToOneHandler, read", "stopped")
 	}()
 
-	// write
-	go func() {
-		defer func() {
-			cancel()
-			close(h.writeCh)
-		}()
-
-		var settingsMessage SettingsMessage
-		settingsMessage.Typ = MessageTypeSettings
-		settingsMessage.ID = h.uniqID
-		message, err := json.Marshal(settingsMessage)
+	for message := range h.readCh {
+		var textMessageRead TextMessageRead
+		err := json.Unmarshal(message, &textMessageRead)
 		if err != nil {
-			h.logError(ctx, "chat, WSClient, processor, json.Marshal(settingsMessage)", err)
+			h.logError(ctx, "chat, oneToOneHandler, read, json.Unmarshal", err)
+		}
+
+		err = h.pubSubHub.Pub(ctx, textMessageRead.To, textMessageRead.Text)
+		if err != nil {
+			h.logError(ctx, "chat, oneToOneHandler, read, pubSubHub.Pub", err)
+		}
+	}
+}
+
+func (h *oneToOneHandler) write(ctx context.Context, cancel context.CancelFunc) {
+	defer func() {
+		cancel()
+		close(h.writeCh)
+		h.logDebug(ctx, "chat, oneToOneHandler, write", "stopped")
+	}()
+
+	var settingsMessage SettingsMessage
+	settingsMessage.Typ = messageTypeSettings
+	settingsMessage.ID = h.clientID
+	message, err := json.Marshal(settingsMessage)
+	if err != nil {
+		h.logError(ctx, "chat, oneToOneHandler, write, json.Marshal(settingsMessage)", err)
+
+		return
+	}
+	h.writeCh <- message
+
+	subCh, err := h.pubSubHub.Sub(ctx, h.clientID)
+	if err != nil {
+		h.logError(ctx, "chat, oneToOneHandler, write, pubSubHub.Sub", err)
+
+		return
+	}
+
+	for subMessage := range subCh {
+		var textMessageWrite TextMessageWrite
+		textMessageWrite.Typ = messageTypeText
+		textMessageWrite.Text = subMessage
+
+		message, err = json.Marshal(textMessageWrite)
+		if err != nil {
+			h.logError(ctx, "chat, oneToOneHandler, write, json.Marshal(textMessageWrite)", err)
 
 			return
 		}
-		h.writeCh <- message
-		subCh, err := h.PubSubHub.Sub(ctx, h.uniqID)
-		if err != nil {
-			h.logError(ctx, "chat, WSClient, processor, pubSub.Sub", err)
+
+		select {
+		case h.writeCh <- message:
+		default:
+			h.logError(ctx, "chat, oneToOneHandler, write, default", errFailWriteToClientChan)
 
 			return
 		}
-
-		for subMessage := range subCh {
-			var textMessageWrite TextMessageWrite
-			textMessageWrite.Typ = MessageTypeText
-			textMessageWrite.Text = subMessage
-
-			message, err = json.Marshal(textMessageWrite)
-			if err != nil {
-				h.logError(ctx, "chat, processor, json.Marshal(textMessageWrite)", err)
-
-				return
-			}
-			select {
-			case h.writeCh <- message:
-			default:
-
-				return
-			}
-		}
-	}()
+	}
 }
 
-func (h *MessageHandler) logError(ctx context.Context, point string, err error) {
+func (h *oneToOneHandler) logError(ctx context.Context, point string, err error) {
 	h.logger.ErrorfContext(ctx, "%s, error: %s", point, err)
+}
+
+func (h *oneToOneHandler) logDebug(ctx context.Context, point string, msg string) {
+	h.logger.DebugfContext(ctx, "%s, msg: %s", point, msg)
 }

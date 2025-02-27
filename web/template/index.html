@@ -100,7 +100,7 @@
         switch (m.type) {
             case {{.MessageTypeSettings}}:
                 const item1 = document.getElementById("clientid");
-                item1.innerText = m.uniqID;
+                item1.innerText = m.clientID;
                 break
             case {{.MessageTypeText}}:
                 const item2 = document.createElement("div");

@@ -9,54 +9,53 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var errWrongWSRemoteClientMessageType = errors.New("wrong WebSocket remote client msg type")
+var errWrongWSClientMessageType = errors.New("wrong WebSocket client message type")
 
-type WSClientConfig struct {
+type ClientConfig struct {
 	WriteTimeoutSeconds int
 	ReadTimeoutSeconds  int
 	ReadLimitPerMessage int
 	PingIntervalSeconds int
 }
 
-type WSClient struct {
-	config    WSClientConfig
-	logger    Logger
-	uniqID    string
-	wsConnect *websocket.Conn
-	readCh    chan []byte
-	writeCh   chan []byte
+type webSocketClient struct {
+	logger   Logger
+	config   ClientConfig
+	clientID string
+	connect  *websocket.Conn
+	readCh   chan []byte
+	writeCh  chan []byte
 }
 
-func (c *WSClient) readPump(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
+func (c *webSocketClient) readPump(ctx context.Context) {
 	defer func() {
-		cancel()
-		c.wsConnect.Close()
+		c.connect.Close()
 		close(c.readCh)
+		c.logDebug(ctx, "chat, webSocketClient, readPump", "stopped")
 	}()
-	c.wsConnect.SetReadLimit(int64(c.config.ReadLimitPerMessage))
-	c.wsConnect.SetReadDeadline( //nolint:errcheck
+	c.connect.SetReadLimit(int64(c.config.ReadLimitPerMessage))
+	c.connect.SetReadDeadline( //nolint:errcheck
 		time.Now().Add(time.Duration(c.config.ReadTimeoutSeconds) * time.Second))
-	c.wsConnect.SetPongHandler(func(string) error {
-		c.logDebug(ctx, "chat, WSClient, readPump", "got pong")
-		c.wsConnect.SetReadDeadline( //nolint:errcheck
+	c.connect.SetPongHandler(func(string) error {
+		c.logDebug(ctx, "chat, webSocketClient, readPump", "pong")
+		c.connect.SetReadDeadline( //nolint:errcheck
 			time.Now().Add(time.Duration(c.config.ReadTimeoutSeconds) * time.Second))
 
 		return nil
 	})
 
 	for {
-		messageType, message, err := c.wsConnect.ReadMessage()
+		wsMessageType, message, err := c.connect.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				c.logError(ctx, "chat, WSClient, readPump, wsConnect.ReadMessage", err)
+				c.logError(ctx, "chat, webSocketClient, readPump, connect.ReadMessage", err)
 			}
 
 			break
 		}
-		c.logDebug(ctx, "chat, WSClient, readPump", fmt.Sprintf("got message type: %d, data: %s", messageType, message))
-		if messageType != websocket.TextMessage {
-			c.logError(ctx, "chat, WSClient, readPump, wsConnect.ReadMessage", errWrongWSRemoteClientMessageType)
+		c.logDebug(ctx, "chat, webSocketClient, readPump", fmt.Sprintf("received: %s, type: %d", message, wsMessageType))
+		if wsMessageType != websocket.TextMessage {
+			c.logError(ctx, "chat, webSocketClient, readPump, connect.ReadMessage", errWrongWSClientMessageType)
 
 			break
 		}
@@ -65,53 +64,48 @@ func (c *WSClient) readPump(ctx context.Context) {
 	}
 }
 
-func (c *WSClient) writePump(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
+func (c *webSocketClient) writePump(ctx context.Context) {
 	ticker := time.NewTicker(time.Duration(c.config.PingIntervalSeconds) * time.Second)
 	defer func() {
-		cancel()
 		ticker.Stop()
-		c.wsConnect.Close()
+		c.connect.Close()
+		c.logDebug(ctx, "chat, webSocketClient, writePump", "stopped")
 	}()
 
 	for {
 		select {
 		case message, ok := <-c.writeCh:
-			c.wsConnect.SetWriteDeadline(time.Now().Add(time.Duration(c.config.WriteTimeoutSeconds) * time.Second)) //nolint:errcheck
+			c.connect.SetWriteDeadline(time.Now().Add(time.Duration(c.config.WriteTimeoutSeconds) * time.Second)) //nolint:errcheck
 			if !ok {
-				c.wsConnect.WriteMessage(websocket.CloseMessage, []byte{}) //nolint:errcheck
+				c.connect.WriteMessage(websocket.CloseMessage, []byte{}) //nolint:errcheck
 
 				return
 			}
 
-			err := c.wsConnect.WriteMessage(websocket.TextMessage, message)
+			err := c.connect.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
-				c.logError(ctx, "chat, WSClient, writePump, wsConnect.WriteMessage Text", err)
+				c.logError(ctx, "chat, webSocketClient, writePump, connect.WriteMessage Text", err)
 
 				return
 			}
-			c.logDebug(ctx, "chat, WSClient, writePump", fmt.Sprintf("send message, data: %s", message))
+			c.logDebug(ctx, "chat, webSocketClient, writePump", fmt.Sprintf("sent: %s", message))
 
 		case <-ticker.C:
-			c.wsConnect.SetWriteDeadline(time.Now().Add(time.Duration(c.config.WriteTimeoutSeconds) * time.Second)) //nolint:errcheck
-			if err := c.wsConnect.WriteMessage(websocket.PingMessage, nil); err != nil {
-				c.logError(ctx, "chat, WSClient, writePump, wsConnect.WriteMessage Ping", err)
+			c.connect.SetWriteDeadline(time.Now().Add(time.Duration(c.config.WriteTimeoutSeconds) * time.Second)) //nolint:errcheck
+			if err := c.connect.WriteMessage(websocket.PingMessage, nil); err != nil {
+				c.logError(ctx, "chat, webSocketClient, writePump, connect.WriteMessage Ping", err)
 
 				return
 			}
-			c.logDebug(ctx, "chat, WSClient, writePump", "send ping")
+			c.logDebug(ctx, "chat, webSocketClient, writePump", "ping")
 		}
 	}
 }
 
-func (c *WSClient) logError(ctx context.Context, point string, err error) {
+func (c *webSocketClient) logError(ctx context.Context, point string, err error) {
 	c.logger.ErrorfContext(ctx, "%s, error: %s", point, err)
 }
 
-func (c *WSClient) logDebug(ctx context.Context, point, msg string) {
+func (c *webSocketClient) logDebug(ctx context.Context, point, msg string) {
 	c.logger.DebugfContext(ctx, "%s, msg: %s", point, msg)
-}
-
-func (c *WSClient) logInfo(ctx context.Context, point, msg string) { //nolint:unused
-	c.logger.InfofContext(ctx, "%s, msg: %s", point, msg)
 }

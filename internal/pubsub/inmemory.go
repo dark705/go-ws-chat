@@ -16,7 +16,10 @@ type inmemory struct {
 }
 
 func NewInmemory(logger Logger) *inmemory {
-	return &inmemory{logger: logger, chs: make(map[string]chan string)}
+	return &inmemory{
+		logger: logger,
+		chs:    make(map[string]chan string),
+	}
 }
 
 func (ps *inmemory) Sub(ctx context.Context, id string) (chan string, error) { //nolint:varnamelen
@@ -25,7 +28,7 @@ func (ps *inmemory) Sub(ctx context.Context, id string) (chan string, error) { /
 	ch := make(chan string) //nolint:varnamelen
 	ps.chs[id] = ch
 	ps.logger.InfofContext(ctx,
-		"pubsub, inmemory, Sub, subscriber with id: %s subscribed, total subscribers is: %d",
+		"pubsub, inmemory, Sub, subscribed ID: %s, total: %d",
 		id, len(ps.chs))
 
 	go func() {
@@ -35,7 +38,7 @@ func (ps *inmemory) Sub(ctx context.Context, id string) (chan string, error) { /
 		close(ch)
 		delete(ps.chs, id)
 		ps.logger.InfofContext(ctx,
-			"pubsub, inmemory, Sub, subscriber with id: %s unsubscribed, total subscribers is: %d",
+			"pubsub, inmemory, Sub, unsubscribed ID: %s , total: %d",
 			id, len(ps.chs))
 	}()
 
@@ -48,9 +51,9 @@ func (ps *inmemory) Pub(ctx context.Context, id, message string) error { //nolin
 
 	ch, found := ps.chs[id]
 	if !found {
-		return fmt.Errorf("subscriber with id: %s not found, %w", id, errNotFound)
+		return fmt.Errorf("subscriber ID: %s, %w", id, errNotFound)
 	}
-	ps.logger.DebugfContext(ctx, "pubsub, inmemory, Pub, subscriber with id: %s send: %s", id, message)
+	ps.logger.DebugfContext(ctx, "pubsub, inmemory, Pub, subscriber ID: %s send: %s", id, message)
 	ch <- message
 
 	return nil

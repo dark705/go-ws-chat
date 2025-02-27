@@ -30,23 +30,18 @@ func (h *httpIndexHandler) ServeHTTP(responseWriter http.ResponseWriter, request
 	ctx := request.Context()
 	err := h.tpl.Execute(responseWriter, struct {
 		WSUrl               string
-		MessageTypeSettings MessageType
-		MessageTypeText     MessageType
+		MessageTypeSettings messageType
+		MessageTypeText     messageType
 	}{
-		WSUrl:               HTTPWSEndpoint,
-		MessageTypeSettings: MessageTypeSettings,
-		MessageTypeText:     MessageTypeText,
+		WSUrl:               HTTPWebSocketEndpoint,
+		MessageTypeSettings: messageTypeSettings,
+		MessageTypeText:     messageTypeText,
 	})
 	if err != nil {
 		h.logError(ctx, request, "chat, httpIndexHandler, tpl.Execute", err)
 
 		return
 	}
-}
-
-func (h *httpIndexHandler) handleError(ctx context.Context, w http.ResponseWriter, r *http.Request, point string, err error) { //nolint:unused
-	h.logError(ctx, r, point, err)
-	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
 func (h *httpIndexHandler) logError(ctx context.Context, _ *http.Request, point string, err error) {

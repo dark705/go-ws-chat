@@ -40,7 +40,7 @@ func main() {
 	// ps := pubsub.NewRndEcho(logger)
 	pubSubHubInMemory := pubsub.NewInmemory(logger)
 
-	chatWSHandler := chat.NewWSHandler(logger, wsUpgrader, chat.WSClientConfig{
+	chatWSHandler := chat.NewWebSocketHandler(logger, wsUpgrader, chat.ClientConfig{
 		WriteTimeoutSeconds: envConfig.WebSocketHandlerWriteTimeoutSeconds,
 		ReadTimeoutSeconds:  envConfig.WebSocketHandlerReadTimeoutSeconds,
 		ReadLimitPerMessage: envConfig.WebSocketHandlerReadLimitPerMessage,
@@ -54,7 +54,7 @@ func main() {
 		envConfig.KuberProbeProbabilityReady)
 
 	httpHandler := http.NewServeMux()
-	httpHandler.Handle(chat.HTTPWSRoutePattern, chatWSHandler)
+	httpHandler.Handle(chat.HTTPWebSocketRoutePattern, chatWSHandler)
 	httpHandler.Handle(chat.HTTPIndexRoutePattern, chatHTTPIndexHandler)
 	httpHandler.Handle(kuberprobe.HTTPRoutePattern, httpKuberProbeHandler)
 
