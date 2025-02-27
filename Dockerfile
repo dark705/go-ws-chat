@@ -11,5 +11,5 @@ WORKDIR /app
 COPY --from=builder /app/bin ./bin
 COPY --from=builder /app/web ./web
 
-CMD ["./bin/app"]
+ENTRYPOINT ["./bin/app"]
 EXPOSE 8000/tcp 9000/tcp
