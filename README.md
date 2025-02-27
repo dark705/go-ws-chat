@@ -1,4 +1,4 @@
-# Simple WebSocket Server with metrics, health check and so on
+# Simple WebSocket one-to-one Chat server
 
 ## Github
 
