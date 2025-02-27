@@ -8,7 +8,10 @@ Can be found on: https://github.com/dark705/go-ws-chat
 
 Can be found on: https://hub.docker.com/r/dark705/go-ws-chat
 
-## API endpoints TODO!!!
+## API endpoints
+
+* / - index, static WebSocket Client view
+* /ws - Web Socket connection
 
 ### Kubernetes endpoint probes
 
